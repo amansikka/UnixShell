@@ -1,5 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <string.h>
+
+
 #define LSH_RL_BUFSIZE 1024 //temperorily makes a buffer to prevent overhead
 #define LSH_TOK_BUFSIZE 64
 #define LSH_TOK_DELIM " \t\r\n\a"
@@ -107,18 +112,91 @@ int lsh_launch(char **args){ //takes in cmd string
       wpid = waitpid(pid, &status, WUNTRACED); 
       //waitpid() is a system call used to wait for state changes in a child process.
       //
-    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status)); 
 
     if (WIFEXITED(status)) {
-            printf("Child exited with status %d\n", WEXITSTATUS(status));
+            printf("Child exited with status %d\n", WEXITSTATUS(status)); //if exited 
         } else if (WIFSIGNALED(status)) {
-            printf("Child terminated by signal %d\n", WTERMSIG(status));
+            printf("Child terminated by signal %d\n", WTERMSIG(status)); //if terminated 
         } else if (WIFSTOPPED(status)) {
-            printf("Child stopped by signal %d\n", WSTOPSIG(status));
+            printf("Child stopped by signal %d\n", WSTOPSIG(status)); //if stopped
         }
   }
 
   return 1;
+}
+
+int lsh_cd(char **args); //changing of a directory taking in args
+int lsh_help(char **args); //changing for help with specific arguments
+int lsh_exit(char **args); //exiting shell with specific exit statuses
+
+char *builtin_str[] = { //possible commands
+  "help",
+  "exit",
+  "cd"
+}; 
+
+int (*builtin_func[]) (char **) = { //array of function pointers 
+  &lsh_cd, //cd dir
+  &lsh_help, //help cmd
+  &lsh_exit //exit cmd
+};
+
+int lsh_num_builtins() {
+  return sizeof(builtin_str) / sizeof(char *); //returns size of the commands a based on bytes
+}
+
+int lsh_cd(char **args)
+{
+  if (args[1] == NULL) { //checks if a dir was specified
+    fprintf(stderr, "lsh: expected argument to \"cd\"\n");
+  } else {
+    if (chdir(args[1]) != 0) { //attempts to change with chdir()
+      perror("lsh"); //if so fails error message
+    }
+  }
+  return 1;
+}
+
+int lsh_help(char **args)
+{
+  int i;
+  printf("Aman Sikka's custom shell\n");
+  printf("Type program names and args then hit enter\n");
+  printf("Everything else is built in :\n");
+
+  for (i = 0; i < lsh_num_builtins(); i++) { //loops through every built in and prints
+    printf("  %s\n", builtin_str[i]);
+  }
+
+  printf("Use the man command for information on other programs.\n");
+  return 1;
+}
+
+int lsh_exit(char **args)
+{
+  return 0; //just retuns 0
+}
+
+
+
+
+
+int lsh_execute(char **args)
+{
+
+  if (args[0] == NULL) { 
+    // An empty command was entered.
+    return 1;
+  }
+
+  for (int i = 0; i < lsh_num_builtins(); i++) { //loops through
+    if (strcmp(args[0], builtin_str[i]) == 0) { //means user has entered a correct shell cmd
+      return (*builtin_func[i])(args); //returns functor with args
+    }
+  }
+
+  return lsh_launch(args); //proceeds to launch with args
 }
 
 
@@ -139,7 +217,7 @@ void lsh_loop(void){ //exectuion
     status = lsh_execute(args); //executes status based on args
 
     free(line); //free memory from line and args 
-    free(args);
+    free(args); //free memory for args
     } while(status);
 }
 
@@ -159,3 +237,4 @@ int main(int argc, char **argv){
 
     return 0;
 }
+

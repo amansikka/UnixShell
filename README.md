@@ -1,6 +1,1 @@
-# shell
-# UnixShell
-# UnixShell
-# UnixShell
-# UnixShell
-# UnixShell
+Aman Sikka's custom unix shell written in C
